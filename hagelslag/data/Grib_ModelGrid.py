@@ -198,7 +198,7 @@ class Grib_ModelGrid(object):
                         u_v_ind = grib_short_names.index(str(variable))
                         data_values = grib_data[u_v_ind].values
                     elif variable in ['U component of wind','V component of wind',
-                        '10 metre U wind component','10 metre V wind component']
+                        '10 metre U wind component','10 metre V wind component']:
                         grib_names = [message.name for message in grib_data]
                         u_v_ind = grib_names.index(str(variable))
                         data_values = grib_data[u_v_ind].values

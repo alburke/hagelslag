@@ -1,3 +1,4 @@
+from glob import glob
 import Nio
 import pandas as pd
 import os
@@ -125,7 +126,7 @@ class MRMSGrid(object):
         self.path_start = path_start
         self.freq = freq
         self.data = None
-        self.all_dates = pd.DatetimeIndex(start=self.start_date, end=self.end_date, freq=self.freq)
+        self.all_dates = pd.date_range(start=self.start_date, end=self.end_date, freq=self.freq)
         self.loaded_dates = None
         self.lon = None
         self.lat = None
@@ -138,41 +139,46 @@ class MRMSGrid(object):
         data = []
         loaded_dates = []
         loaded_indices = []
+        
+        single_date = np.unique(self.all_dates.strftime("%Y%m%d"))[0]
+        full_path = self.path_start + '{0}/{1}/*' #.format(date_str,self.variable
+        all_files = sorted(glob(full_path.format(single_date,self.variable))) 
+        file_dates = np.array([mrms_file.split("_")[-1][0:11] for mrms_file in all_files])
+        
+        var_name = None
         for t, timestamp in enumerate(self.all_dates):
-            date_str = timestamp.date().strftime("%Y%m%d")
-            full_path = self.path_start + date_str + "/"
-            if self.variable in os.listdir(full_path):
-                full_path += self.variable + "/"
-                data_files = sorted(os.listdir(full_path))
-                file_dates = pd.to_datetime([d.split("_")[-1][0:13] for d in data_files])
-                if timestamp in file_dates:
-                    data_file = data_files[np.where(timestamp==file_dates)[0][0]]
-                    print(full_path + data_file)
-                    if data_file[-2:] == "gz":
-                        subprocess.call(["gunzip", full_path + data_file])
-                        file_obj = Nio.open_file(full_path + data_file[:-3])
-                    else:
-                        file_obj = Nio.open_file(full_path + data_file)
-                    var_name = sorted(file_obj.variables.keys())[0]
-                    data.append(file_obj.variables[var_name][:])
-                    if self.lon is None:
-                        self.lon = file_obj.variables["lon_0"][:]
-                        # Translates longitude values from 0:360 to -180:180
-                        if np.count_nonzero(self.lon > 180) > 0:
-                            self.lon -= 360
-                        self.lat = file_obj.variables["lat_0"][:]
-                    file_obj.close()
-                    if data_file[-2:] == "gz":
-                        subprocess.call(["gzip", full_path + data_file[:-3]])
-                    else:
-                        subprocess.call(["gzip", full_path + data_file])
-                    loaded_dates.append(timestamp)
-                    loaded_indices.append(t)
+            time_string = str(timestamp.strftime('%Y%m%d-%H'))
+            print(time_string)
+            date_inds = np.where(file_dates == time_string)[0]
+            sub_hour_data = []
+            for sub_hour in date_inds:
+                data_file = all_files[sub_hour]
+                if data_file[-2:] == "gz":
+                    subprocess.call(["gunzip", data_file])
+                    file_obj = Nio.open_file(data_file[:-3])
+                else:
+                    file_obj = Nio.open_file(data_file)
+                if var_name is None: var_name = sorted(file_obj.variables.keys())[0]
+                if self.lon is None:
+                    self.lon = file_obj.variables["lon_0"][:]
+                    # Translates longitude values from 0:360 to -180:180
+                    if np.count_nonzero(self.lon > 180) > 0:
+                        self.lon -= 360
+                    self.lat = file_obj.variables["lat_0"][:]
+                
+                sub_hour_data.append(file_obj.variables[var_name][:])
+                file_obj.close()
+
+            hourly_max = np.nanmax(sub_hour_data, axis=0)
+            data.append(hourly_max)
+            loaded_dates.append(timestamp.date().strftime('%Y%m%d'))
+            loaded_indices.append(t)
+            
         if len(loaded_dates) > 0:
             self.loaded_dates = pd.DatetimeIndex(loaded_dates)
             self.data = np.ones((self.all_dates.shape[0], data[0].shape[0], data[0].shape[1])) * -9999
             self.data[loaded_indices] = np.array(data)
-
+        
     def interpolate_grid(self, in_lon, in_lat):
         """
         Interpolates MRMS data to a different grid using cubic bivariate splines
@@ -243,6 +249,7 @@ class MRMSGrid(object):
         out_file = out_path + self.variable + "/" + "{0}_{1}_{2}.nc".format(self.variable,
                                                                             self.start_date.strftime("%Y%m%d-%H:%M"),
                                                                             self.end_date.strftime("%Y%m%d-%H:%M"))
+        print('Writing to {0}'.format(out_file))
         out_obj = Dataset(out_file, "w")
         out_obj.createDimension("time", out_data.shape[0])
         out_obj.createDimension("y", out_data.shape[1])
