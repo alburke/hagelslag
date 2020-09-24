@@ -67,7 +67,7 @@ class MRMSGrid(object):
                     else:
                         time_var = "date"
                     file_valid_dates = pd.DatetimeIndex(num2date(file_obj.variables[time_var][:],
-                                                                 file_obj.variables[time_var].units))
+                        file_obj.variables[time_var].units,only_use_cftime_datetimes=False))
                 else:
                     file_valid_dates = pd.DatetimeIndex([])
                 time_index = np.where(file_valid_dates.values == self.all_dates.values[t])[0]

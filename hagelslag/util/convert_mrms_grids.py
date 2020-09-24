@@ -113,7 +113,6 @@ def interpolate_mrms_day(start_date, variable, interp_type, mrms_path, map_filen
         print(traceback.format_exc())
         raise e
 
-
 class MRMSGrid(object):
     """
     MRMSGrid reads time series of MRMS grib2 files, interpolates them, and outputs them to netCDF4 format.

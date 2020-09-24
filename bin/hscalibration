@@ -2,7 +2,6 @@
 from hagelslag.util.make_proj_grids import * 
 from hagelslag.util.Config import Config
 from scipy.ndimage import gaussian_filter
-from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 from copy import deepcopy
@@ -20,6 +19,12 @@ try:
     grib_support = True
 except ImportError("ncepgrib2 not available"):
     grib_support = False   
+
+try:
+    from mpl_toolkits.basemap import Basemap
+except: 
+    print('\n\nIf plotting, install Basemap\n\n')
+    
 
 def main():
     parser = argparse.ArgumentParser()

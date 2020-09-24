@@ -160,7 +160,7 @@ class TrackModeler(object):
             print(group)
             group_data = self.data["train"]["combo"].loc[self.data["train"]["combo"][self.group_col] == group]
             if self.weighting_function:
-                weights = self.weighting_function(group_data)
+                weights = self.weighting_function(group_data,group,identifier='class')
             else:
                 weights = None
             output_data = np.where(group_data[output_column] > output_threshold, 1, 0)
@@ -204,7 +204,7 @@ class TrackModeler(object):
             group_data = self.data["train"]["combo"].iloc[
                 np.where(self.data["train"]["combo"][self.group_col] == group)[0]]
             if self.weighting_function:
-                weights = self.weighting_function(group_data)
+                weights = self.weighting_function(group_data,group,identifier='class')
             else:
                 weights = None
             output_data = np.where(group_data.loc[:, output_column] > output_threshold, 1, 0)
@@ -259,8 +259,6 @@ class TrackModeler(object):
         groups = self.condition_models.keys()
         predictions = pd.DataFrame(self.data[data_mode]["combo"][metadata_cols])
         for group in groups:
-            print(group)
-            print(self.condition_models[group])
             g_idxs = self.data[data_mode]["combo"][self.group_col] == group
             group_count = np.count_nonzero(g_idxs)
             if group_count > 0:
@@ -298,7 +296,7 @@ class TrackModeler(object):
             group_data = self.data["train"]["combo"].loc[self.data["train"]["combo"][self.group_col] == group]
             group_data = group_data[group_data[output_columns[-1]] > 0]
             if self.weighting_function:
-                weights = self.weighting_function(group_data)
+                weights = self.weighting_function(group_data,group,identifier='reg')
             else:
                 weights = None
             group_data = group_data.dropna(axis='index')
@@ -360,7 +358,7 @@ class TrackModeler(object):
             group_data = group_data.dropna()
             group_data = group_data.loc[group_data[output_columns[-1]] > 0]
             if self.weighting_function:
-                weights = self.weighting_function(group_data)
+                weights = self.weighting_function(group_data,group,identifier='reg')
             else:
                 weights = None
             self.size_distribution_models[group] = {"lognorm": {}}
@@ -414,7 +412,6 @@ class TrackModeler(object):
             group_idxs = self.data[data_mode]["combo"][self.group_col] == group
             group_count = np.count_nonzero(group_idxs)
             if group_count > 0:
-                print(self.size_distribution_models[group])
                 log_mean = self.size_distribution_models[group]["lognorm"]["mean"]
                 log_sd = self.size_distribution_models[group]["lognorm"]["sd"]
                 for m, model_name in enumerate(model_names):
@@ -445,7 +442,7 @@ class TrackModeler(object):
         Args:
             model_names: Name of the models for predictions
             input_columns: Data columns used for input into ML models
-            output_columns: Names of output columns
+            output_colums: Names of output columns
             metadata_cols: Columns from input data that should be included in the data frame with the predictions.
             data_mode: Set of data used as input for prediction models
             location: Value of fixed location parameter
@@ -458,7 +455,6 @@ class TrackModeler(object):
         for group in groups:
             group_idxs = self.data[data_mode]["combo"][self.group_col] == group
             group_count = np.count_nonzero(group_idxs)
-            print(self.size_distribution_models[group])
             if group_count > 0:
                 log_mean = self.size_distribution_models[group]["lognorm"]["mean"]
                 log_sd = self.size_distribution_models[group]["lognorm"]["sd"]

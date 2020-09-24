@@ -203,7 +203,8 @@ class EnsembleMemberProduct(object):
         if exists(nc_file):
             nc_patches = Dataset(nc_file)
             nc_times = pd.DatetimeIndex(num2date(nc_patches.variables["time"][:],
-                                             nc_patches.variables["time"].units))
+                                             nc_patches.variables["time"].units,
+                                             only_use_cftime_datetimes=False))
             time_indices = np.isin(nc_times, self.times)
             self.nc_patches = dict()
             self.nc_patches["time"] = nc_times[time_indices]
