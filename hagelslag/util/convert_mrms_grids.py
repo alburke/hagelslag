@@ -14,7 +14,7 @@ from multiprocessing import Pool
 import warnings
 import traceback
 import argparse
-
+import xarray as xr
 
 def main():
     warnings.simplefilter("ignore")
@@ -172,7 +172,6 @@ class MRMSGrid(object):
             data.append(hourly_max)
             loaded_dates.append(timestamp.date().strftime('%Y%m%d'))
             loaded_indices.append(t)
-            
         if len(loaded_dates) > 0:
             self.loaded_dates = pd.DatetimeIndex(loaded_dates)
             self.data = np.ones((self.all_dates.shape[0], data[0].shape[0], data[0].shape[1])) * -9999
