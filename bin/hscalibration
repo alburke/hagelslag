@@ -2,6 +2,7 @@
 from hagelslag.util.make_proj_grids import * 
 from hagelslag.util.Config import Config
 from scipy.ndimage import gaussian_filter
+#from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 from copy import deepcopy
@@ -19,12 +20,6 @@ try:
     grib_support = True
 except ImportError("ncepgrib2 not available"):
     grib_support = False   
-
-try:
-    from mpl_toolkits.basemap import Basemap
-except: 
-    print('\n\nIf plotting, install Basemap\n\n')
-    
 
 def main():
     parser = argparse.ArgumentParser()
@@ -55,7 +50,8 @@ def main():
         proj_dict, grid_dict = read_arps_map_file(config.map_file)
     else:
         proj_dict, grid_dict = read_ncar_map_file(config.map_file)
-
+    config.grid_dict = grid_dict
+    config.proj_dict = proj_dict
     if args.train:
         trained_models = train_calibration(config)
         saving_cali_models(trained_models,config)
@@ -66,14 +62,15 @@ def main():
                                  freq='1D')
         
         target_dataset_models = load_cali_models(config)
-        run_date = []
+        run_date_str= [date.strftime(config.run_date_format) for date in run_datetime ]
+        '''
         for date in run_datetime: 
             test_data_files = config.forecast_data_path+\
                     "20{0}/netcdf/".format(date.strftime(config.run_date_format))
             if os.path.exists(test_data_files): 
                 run_date.append(date)
-        
-        run_date_str = [r.strftime(config.run_date_format) for r in run_date]
+        '''
+        #run_date_str = [r.strftime(config.run_date_format) for r in run_date]
         print()
         print('Forecast run date(s): {0}'.format(run_date_str))
         print('Creating calibrated forecasts')  
@@ -306,7 +303,7 @@ def create_calibration_forecasts(target_calib_model,start_hour,end_hour,
     
     lon = None
     lat = None
-
+    if len(run_dates) < 1: return None
     target_cali_forecast = {}
     
     if config.size_threshold:
@@ -320,15 +317,23 @@ def create_calibration_forecasts(target_calib_model,start_hour,end_hour,
                     start_hour,end_hour))
                 if len(test_data_files)>=1: 
                     test_file.append(test_data_files[0])
-            all_test_files = [Dataset(x).variables["Data"][:] for x in test_file]
-            test_data = np.array(all_test_files).flatten()
-            zero_inds = np.where(test_data == 0.0)[0]
-            for model_name in config.calibration_model_names:
-                data_shape = (len(run_dates),np.shape(all_test_files[0])[0],\
+                else: 
+                    map_data = make_proj_grids(config.proj_dict,config.grid_dict)
+                    lons = map_data["lon"]
+                    shape = (len(run_dates),np.shape(lons)[0], np.shape(lons)[1])
+                    zero_data = np.zeros(shape)
+                    for model_name in config.calibration_model_names:
+                        target_cali_forecast[size][model_name] = zero_data
+            if len(test_file) >= 1:
+                all_test_files = [Dataset(x).variables["Data"][:] for x in test_file]
+                test_data = np.array(all_test_files).flatten()
+                zero_inds = np.where(test_data == 0.0)[0]
+                for model_name in config.calibration_model_names:
+                    data_shape = (len(run_dates),np.shape(all_test_files[0])[0],\
                             np.shape(all_test_files[0])[1]) 
-                predict = target_calib_model[size][model_name].transform(test_data)
-                predict[zero_inds] = 0.0
-                target_cali_forecast[size][model_name] = predict.reshape(data_shape)
+                    predict = target_calib_model[size][model_name].transform(test_data)
+                    predict[zero_inds] = 0.0
+                    target_cali_forecast[size][model_name] = predict.reshape(data_shape)
                 
     return target_cali_forecast
 
